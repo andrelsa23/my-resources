@@ -1,5 +1,4 @@
-# my-resources
+## my-resources
 
-## just an example
+# just an example
 
-Text
