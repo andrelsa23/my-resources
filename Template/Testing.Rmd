@@ -1,0 +1,45 @@
+---
+title: "Dose-response template"
+author: "Andre L. S. Araujo"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+```
+
+# Instructions 
+
+```{r}
+####
+#00#
+####
+library(knitr)
+library(tidyverse)
+library(drc)
+library(ggplot2)
+library(readxl)
+
+```
+
+*******
+
+# 1. Make a Scatter Plot With Customized Point Size and Transparency (3pts)
+
+*******
+
+Description and Interpretation: This R code loads data from two Excel files 
+(sus_data.xlsx and res_data.xlsx) for susceptible and resistant populations,
+respectively. It fits dose-response curves using the LL.3 model and calculates 
+confidence intervals for predicted values. New dose levels are generated to 
+support the curves. The dose 0 (control) was shift a little because would not allow log.
+Additionally, data from another Excel file (dose_auxind.xlsx) is loaded and 
+prepared for plotting.
+
+```{r, warning=FALSE}
+
+```
+
