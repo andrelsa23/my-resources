@@ -1,0 +1,426 @@
+---
+title: "CM515 Assignment 5"
+author: "Andre L. S. Araujo"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+```
+
+# Instructions 
+
+The aim of this assignment is to provide you with an opportunity to sharpen your skills in using ggplot(). While some of the plots you create may resemble those we covered in class, it is essential that they are original. 
+ 
+ Rules for the Assignment:
+ 
+ 1.All data sets except iris are fair game. That includes past data sets used in the class, sets built into R, your own data, and even online data.
+ 
+ 2. All graphs must include axis labels, plot title, a theme of your choice, and a brief description/interpretation of the plot (2-3 sentences).
+
+
+It's worth noting that ggplot() is a widely-used tool, and there are numerous online resources available for you to explore. We strongly recommend that you take advantage of these resources to deepen your understanding of ggplot(). 
+
+Knit the document into a PDF and submit it to Canvas by 02/28/2024 at 11:59 pm.
+
+# Load Packages and Data
+
+*******
+
+```{r}
+####
+#00#
+####
+library(knitr)
+library(tidyverse)
+library(drc)
+library(ggplot2)
+library(hexbin)
+library(Rmisc)
+library(readxl)
+
+```
+
+*******
+
+# 1. Make a Scatter Plot With Customized Point Size and Transparency (3pts)
+
+*******
+
+Description and Interpretation: This R code loads data from two Excel files 
+(sus_data.xlsx and res_data.xlsx) for susceptible and resistant populations,
+respectively. It fits dose-response curves using the LL.3 model and calculates 
+confidence intervals for predicted values. New dose levels are generated to 
+support the curves. The dose 0 (control) was shift a little because would not allow log.
+Additionally, data from another Excel file (dose_auxind.xlsx) is loaded and 
+prepared for plotting.
+
+```{r, warning=FALSE}
+####
+#01#
+####
+
+sus_data <- read_excel("/Users/andrelsa/Downloads/sus_data.xlsx")
+
+CURVE1 <- drm(mass ~ dose, data = sus_data, fct = LL.3()) 
+
+# new dose levels as support for the line 
+curve1 <- expand.grid(dose=exp(seq(log(0.1), log(2300), length=50))) #put doses until the max rate
+
+# predictions and confidence intervals 
+pm <- predict(CURVE1, newdata=curve1, interval="confidence") 
+
+# new data with predictions 
+curve1$p <- pm[, 1] 
+curve1$pmin <- pm[, 2] 
+curve1$pmax <- pm[, 3]
+
+res_data <- read_excel("/Users/andrelsa/Downloads/res_data.xlsx")
+
+CURVE2 <- drm(mass ~ dose, data = res_data, fct = LL.3())
+
+# new dose levels as support for the line 
+curve2 <- expand.grid(dose=exp(seq(log(0.1), log(2300), length=50))) #log should go from the lowest to the highest dose
+# predictions and confidence intervals 
+pm <- predict(CURVE2, newdata=curve2, interval="confidence") 
+# new data with predictions 
+curve2$p <- pm[, 1] 
+curve2$pmin <- pm[, 2] 
+curve2$pmax <- pm[, 3]
+
+#open combined data (susceptible and resistant)
+
+dose_auxind <- read_excel("dose_auxind.xlsx", 
+    sheet = "Dicamba")
+
+
+# need to shift conc == 0 a bit up, otherwise there are problems with coord_trans later on
+dose_auxind$DOSE0 <- dose_auxind$dose
+dose_auxind$DOSE0[dose_auxind$DOSE0 == 0] <- 0.1 
+
+#Plotting curve, adding point sizes (size = ) and transparency (alpha =)
+
+ggplot(dose_auxind, aes(x = DOSE0, y = mass)) +
+  geom_point(size = 3, alpha = 0.7) +  # Customize point size and transparency
+  labs(x = bquote('Dicamba (g ae'~ha^-1*')'), y = "Fresh Mass (g)")
+
+
+
+```
+
+*******
+
+# 2. Fit a Line Through Your Scatter Plot From 1. (3pts)
+
+*******
+
+Description and Interpretation: This code fits dose-response curves for two 
+populations (susceptible and resistant) in the dose_auxind dataset using a 
+specific model (LL.3). It then predicts mass values using these models and
+creates a scatter plot overlaid with dose-response curves for each population.
+The plot allows for visual comparison of dose-response patterns between 
+susceptible and resistant populations, aiding in understanding how mass 
+changes with dose in each group.
+
+```{r}
+####
+#02#
+####
+
+# Fit dose-response curves for each population
+model_susceptible <- drm(mass ~ dose, data = subset(dose_auxind, Population == "Susceptible"), fct = LL.3())
+model_resistant <- drm(mass ~ dose, data = subset(dose_auxind, Population == "Resistant"), fct = LL.3())
+
+# Predict values using the models
+predicted_values_susceptible <- data.frame(dose = dose_auxind$dose, mass = predict(model_susceptible))
+predicted_values_resistant <- data.frame(dose = dose_auxind$dose, mass = predict(model_resistant))
+
+# Create a scatter plot with dose-response curves for each population
+ggplot() +
+  geom_point(data = dose_auxind, aes(x = dose, y = mass), size = 3) +  # Scatter plot without color aesthetic
+  geom_line(data = predicted_values_susceptible, aes(x = dose, y = mass), size = 1) +  # Add dose-response curve for susceptible population
+  geom_line(data = predicted_values_resistant, aes(x = dose, y = mass), size = 1) +  # Add dose-response curve for resistant population
+  labs(x = bquote('Dicamba (g ae'~ha^-1*')'), y = "Fresh Mass (g)") +
+  theme_minimal()
+```
+
+# 3. Set the transparency, shape, and color of your graph from 1 based on expressions. Scale the color. (3pts)
+
+*******
+
+Description and Interpretation: The graph shows how mass changes with increasing 
+herbicide doses for susceptible and resistant populations. 
+Scatter points represent observed data, with colors indicating each population. 
+The x-axis represents dose levels, while the 
+y-axis represents mass.
+
+```{r}
+####
+#03#
+####
+# Create a scatter plot with dose-response curves for each population
+# Create a scatter plot with dose-response curves for each population
+ggplot() +
+  geom_point(data = dose_auxind, aes(x = dose, y = mass, color = Population), size = 3, alpha = 0.7, shape = 16) +  # Scatter plot with color aesthetic
+  geom_line(data = predicted_values_susceptible, aes(x = dose, y = mass), color = "#00BFC4", size = 1, alpha = 0.7) +  # Add dose-response curve for susceptible population
+  geom_line(data = predicted_values_resistant, aes(x = dose, y = mass), color = "#F8766D", size = 1, alpha = 0.7) +  # Add dose-response curve for resistant population
+  scale_color_manual(values = c(Susceptible = "#00BFC4", Resistant = "#F8766D")) +  # Specify colors for each population
+  labs(x = bquote('Dicamba (g ae'~ha^-1*')'), y = "Fresh Mass (g)") +
+  theme_minimal()
+
+
+```
+
+*******
+
+# 4. Make a Boxplot With Customized Boxplot Width (3pts)
+
+*******
+
+Description and Interpretation: This plot visually compares mass distributions across the
+two populations in a box plot format. Here doses were not used, but only mass of
+each population.
+
+```{r}
+####
+#04#
+####
+ggplot(dose_auxind, aes(x = Population, y = mass, fill = Population)) +
+  geom_boxplot(width = 0.5) +  # Customize boxplot width
+  labs(x = "Population", y = "Fresh Mass (g)") +
+  theme_minimal()
+
+```
+
+*******
+
+# 5. Overlay the Individual Points Over Your Box Plot From 3. and Adjust the Point Size and Transparency as Needed (3pts)
+
+******
+
+Description and Interpretation: Jittering and dodging of points improve visualization.
+Similarly as before, this plot visually compares mass distributions across the
+two populations
+
+```{r}
+####
+#05#
+####
+ggplot(dose_auxind, aes(x = Population, y = mass, fill = Population)) +
+  geom_boxplot(width = 0.5) + 
+  geom_point(position = position_jitterdodge(), aes(shape = Population), size = 3, alpha = 0.7) +  # Overlay individual points with adjusted size and transparency
+  labs(x = "Population", y = "Fresh Mass (g)") +
+  theme_minimal()
+
+```
+
+# 6. Make a plot and modify the scale in a beneficial way using scale_x_continuous(), scale_y_continuous(), and coordinate_cartesian(). Explain how your modifications to the scales improved the plot. (4pts)
+
+******
+
+Description and Interpretation: library(Rmisc) was required for this step, to run summarySE 
+which basically calculate summary statistics by groups.
+In that case, CURVE is related to the two populations. The breaks allow to show each
+of treatments, based on herbicide dose. It helps to compare the two populations.
+Also, the graph was changed to log scale, which is a common practice in dose-response
+graphs. But I decided to re-label the x axis based on the real doses that were
+applied for each treatment instead of leaving in log scale 
+(for exampe: 10, 100, 1000 and so on)
+
+
+```{r, warning=FALSE}
+####
+#06#
+####
+
+# Summarizing the data frame dose_auxind by calculating summary statistics for the variable "mass" grouped by "CURVE" and "DOSE0"
+
+
+H<-summarySE(dose_auxind,measurevar = "mass", groupvars = c("CURVE", "DOSE0"))
+
+H
+
+# Assuming we have a data frame named columns as dose, lower_ci, and upper_ci
+
+ggplot(H, aes(x=DOSE0, y = mass))+
+  geom_point(aes(shape=CURVE, color=CURVE, fill=CURVE),
+             size=c(3))+
+  scale_shape_manual(name="Populations", #here I added the title for my two datas
+                     values=c(20,20),
+                     breaks=c("B", "A"),
+                     labels=c("Resistant", "Susceptible"))+
+  scale_colour_manual(name="Populations",
+                      values = c("#F8766D", "#00BFC4"), 
+                      #named="Population", because we have Resistant and Susceptible
+                      breaks=c("B", "A"),
+                      labels=c("Resistant", "Susceptible"))+
+  scale_fill_manual(name="Populations",
+                      #named="Population", same as before
+                    values = c("#F8766D", "#00BFC4"),
+                    breaks=c("B", "A"),
+                    labels=c("Resistant", "Susceptible"))+ coord_trans(x="log")+
+  labs(x = bquote('Dicamba (g ae'~ha^-1*')'), y = "Fresh Mass (g)") +
+  geom_line(data = curve1, aes(x=dose, y = p), color="#00BFC4", linetype = "dashed", size=0.5)+ ###I changed for dashed to better differentiate
+  geom_line(data = curve2, aes(x=dose, y = p) , color="#F8766D", size=0.5)+
+  
+  scale_linetype_manual(name="Populations",
+                        values = c("R"="solid", "S"="dashed"))+
+
+  geom_ribbon(data=curve1, aes(x=dose, y=p, ymin=pmin, ymax=pmax), alpha=0.2, fill="#00BFC4")+
+  geom_ribbon(data=curve2, aes(x=dose, y=p, ymin=pmin, ymax=pmax), alpha=0.2, fill="#F8766D") +
+  
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 9, color = "black"),
+        axis.text.y=element_text(size=9, color = "black"))+
+  theme(axis.title.x = element_text(size=14),
+        axis.title.y = element_text(size=14))+
+#Here I used scale_x_continuous to rename my axis based on my data, for x axis I added
+#all doses and the same breaks. On y axis I added the fresh mass. 
+#This improved my plot because I can better visualize each data point.
+  scale_x_continuous(breaks=c(0.1, 35, 70, 140, 280, 560, 1120, 2240),
+                     #0.5, 6.9, 13.8, 27.7, 41.5, 55.4, 110.8, 221.6, 443.2#
+                     labels=c("0", "35", "70", "140", "280", "560", "1120", "2240"))+
+  scale_y_continuous(breaks=c(0.0, 2, 4, 6, 8),
+                     labels=c("0", "2", "4", "6", "8")) +
+  
+  #here I will adjust my theme and legend. I wanted to be inside the graph
+  theme(axis.line = element_line(color="white",
+                                size = 0.3, linetype = "solid"))+
+  theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid'),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray92"))+   
+  theme(legend.position = ("right"))+
+  theme(legend.key = element_rect(fill = "white", color = NA))+ 
+  theme(legend.title = element_text(colour="black", size=12, 
+                                    face="bold"))+
+  theme(legend.position = c (0.9, 0.8))+
+  guides(linetype=guide_legend(order = 1))
+
+
+
+```
+
+******
+
+# 7. Make a New (don't use any plots from 1-4) Plot with facet_wrap() (4pts)
+
+******
+
+Description and Interpretation: This R code creates scatter plots with dose-response curves for different population groups. These curves are created using a method called "drm" with a model called "LL.3". The plot is divided into separate sections (facet), for each population group, allowing easy comparison of dose-response patterns across different groups.
+
+```{r}
+#07#
+####
+ggplot(dose_auxind, aes(x = dose, y = mass)) +  # Define the data and aesthetics
+  geom_point() +  # Scatter plot without color aesthetic
+  geom_smooth(  # Add dose-response curves for each population
+    aes(group = Population),  # Group the data by the Population variable
+    method = "drm",  # Use the drm method for fitting the curves
+    method.args = list(fct = LL.3()),  # Specify additional arguments for the method (LL.3) 
+    se = FALSE  # Do not display confidence intervals
+  ) +
+  labs(x = bquote('Dicamba (g ae'~ha^-1*')'), y = "Fresh Mass (g)") +  # Set axis labels
+  theme_bw() +  # Apply minimal theme
+  facet_wrap(~ Population)  # Facet the plots by the Population variable
+
+
+
+
+```
+
+# 8. Using the plot from 5, scale the colors and reorder your facet to reverse order. (4pts)
+
+******
+
+Description and Interpretation: This R code generates a grouped boxplot with 
+overlaid individual data points. It uses the ggplot2 package to visualize the relationship between mass and Population in the dose_auxind dataset. The fill colors for the boxplots are manually specified, and facets are created for each level of Population, with the order reversed.
+The resulting plot compares the mass by the two groups. 
+Boxplots show the central tendency and spread of the data within each group, 
+while individual data points provide additional detail.
+
+```{r}
+#08#
+####
+#your code here
+
+# Define the colors I want
+my_colors <- c("#5E4FA2", "#FFA500")
+
+# Reverse the order of facets
+ggplot(dose_auxind, aes(x = Population, y = mass, fill = Population)) +
+  geom_boxplot(width = 0.5) +
+  geom_point(position = position_jitterdodge(), aes(shape = Population), size = 3, alpha = 0.7) +
+  labs(x = "Population", y = "Fresh Mass (g)") +
+  theme_bw() +
+  scale_fill_manual(values = my_colors) +  # Scale the fill colors
+  facet_wrap(~ Population, scales = "free", dir = "v")  # Reverse the order of facets
+
+
+```
+
+******
+
+# 9. Make a Plot Using a Geometry That Was Not Covered in Class (4pts)
+
+******
+
+Description and Interpretation: This one is interesting, although not useful to my 
+data specifically. Basically creates a hexagonal binning plot, which is useful for visualizing 
+the density of points in a scatterplot when there are a large number of points.
+But requires a extra package which is hexbin. Instead of plotting individual 
+points, the plot is divided into hexagonal bins, and the color intensity 
+represents the number of points within each bin.
+
+```{r}
+####
+#09#
+####
+
+ggplot(dose_auxind, aes(x = dose, y = mass)) +
+  geom_hex() +  # Add hexagonal binning
+  geom_point(aes(color = Population), size = 3, alpha = 0.7, shape = 16) +  # Scatter plot with color aesthetic
+  scale_color_manual(values = c(Susceptible = "#00BFC4", Resistant = "#F8766D")) +  # Specify colors for each population
+  labs(x = bquote('Dicamba (g ae'~ha^-1*')'), y = "Fresh Mass (g)") +
+  theme_minimal()
+
+```
+
+# 10. Make a Plot Using a ggplot Extension That Was Not Covered in Class. Explain what the extension does. (4pts)
+
+******
+
+Description and Interpretation: To address this question I used "geom_rug" and what it 
+is basically to add tick marks at the bottom of the plot (or along the x-axis) to represent
+distribution of variables in data set.
+
+```{r}
+####
+#10#
+####
+
+ggplot(data = dose_auxind, aes(x = dose, y = mass, color = Population)) +
+  geom_point() +  # Add points
+  geom_smooth(method = "lm", se = FALSE) +  # Add trend line
+  geom_rug(sides = "b") +  # Add rugs at the bottom axis
+  labs(x = "Dose", y = "Mass") +  # Add axis labels
+  theme_minimal()  # Apply minimal theme
+
+
+
+
+
+
+```
+
+******
+
+# Appendix
+
+```{r show-code, ref.label = all_labels(), echo = TRUE, eval = FALSE}
+
+```
+
+
+
